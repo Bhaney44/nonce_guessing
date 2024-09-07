@@ -54,8 +54,10 @@ with open('list.csv', 'r') as file:
                     # Convert the hex hashes to integers
                     prev_hash_int = hex_to_int(hashPrevBlock)
                     print(prev_hash_int)
+                    print("prev_hash_int",prev_hash_int)
                     new_hash_int = hex_to_int(newBlockHash)
                     print(new_hash_int)
+                    print("new_hash_int", new_hash_int)
                     # Compare the hashes and stop if the new block hash is less than or equal to the previous block hash
                     if new_hash_int <= prev_hash_int:
                         print("New block hash is less than or equal to the previous hash. Stopping.")
@@ -67,16 +69,17 @@ with open('list.csv', 'r') as file:
                     hash = hashlib.sha256(hashlib.sha256(header_bin).digest()).digest()
                     hexyh = hexlify(hash).decode("utf-8")
                     newBlockHash = hexlify(hash[::-1]).decode("utf-8")
-                    prev_hash_int = hex_to_int(hashPrevBlock)
-                    print(prev_hash_int)
-                    new_hash_int = hex_to_int(newBlockHash)
-                    print(new_hash_int)
+                    #print("preBlockHash", hashPrevBlock)
+                    #print("newBlockHash", newBlockHash)
                     ###################################
                     # Convert the hex hashes to integers
                     prev_hash_int = hex_to_int(hashPrevBlock)
+                    print("prev_hash_int",prev_hash_int)
                     new_hash_int = hex_to_int(newBlockHash)
+                    print("new_hash_int", new_hash_int)
                     # Compare the hashes and stop if the new block hash is less than or equal to the previous block hash
                     if new_hash_int <= prev_hash_int:
                         print("New block hash is less than or equal to the previous hash. Stopping.")
                         return 
             process_header(header_hex)
+
