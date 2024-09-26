@@ -1,11 +1,16 @@
-from agent0 import Agent  # Replace with your agent file name and class
+# Replace with your agent file name and class
+from agent0 import Agent  
 from env import CustomEnv
 
 def main():
-    env = CustomEnv()  # Initialize the environment
-    agent = Agent(env)  # Initialize the agent with the environment
-    agent.train()  # Begin training the agent
-    agent.test()  # Test the agent
+    # Initialize the environment
+    env = CustomEnv()  
+    # Initialize the agent with the environment
+    agent = Agent(env) 
+    # Begin training the agent
+    agent.train()  
+    # Test the agent
+    agent.test() 
 
 if __name__ == "__main__":
     main()
