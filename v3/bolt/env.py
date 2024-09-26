@@ -6,7 +6,8 @@ class CustomEnv(gym.Env):
     def __init__(self, target_list=None):
         super(CustomEnv, self).__init__()
         # Define action and observation space
-        self.action_space = spaces.Discrete(2)  # Example: 2 possible actions
+        # Example: 2 possible actions
+        self.action_space = spaces.Discrete(2)  
         self.observation_space = spaces.Box(low=0, high=1, shape=(4,), dtype=np.float32)
         
         # Target list to track specific goals for the environment
