@@ -4,8 +4,10 @@ from env import CustomEnv
 
 class Agent:
     def __init__(self, env):
-        self.env = env  # Store the environment
-        self.model = PPO("MlpPolicy", self.env, verbose=1)  # Initialize the PPO model with the environment
+        # Store the environment
+        self.env = env  
+        # Initialize the PPO model with the environment
+        self.model = PPO("MlpPolicy", self.env, verbose=1)  
 
     def train(self):
         # Train the model
