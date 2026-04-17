@@ -150,12 +150,37 @@ class NonceTransformer(nn.Module):
 
 # ─── Factory ──────────────────────────────────────────────────────────────────
 
-def build_model(model_type: str, input_dim: int, seq_len: int = 50) -> nn.Module:
+def build_model(model_type: str, input_dim: int, seq_len: int = 50, dual_head: bool = False) -> nn.Module:
     if model_type == "mlp":
-        return NonceMLP(input_dim=input_dim)
+        return NonceMLP(input_dim=input_dim) if not dual_head else DualHeadMLP(input_dim=input_dim)
     elif model_type == "lstm":
         return NonceLSTM(input_dim=input_dim)
     elif model_type == "transformer":
         return NonceTransformer(input_dim=input_dim)
     else:
         raise ValueError(f"Unknown model type: {model_type}")
+
+
+# ─── Dual-head model: jointly predict (version_free, nonce) ──────────────────
+
+class DualHeadMLP(nn.Module):
+    """
+    Jointly predicts both the version free bits AND the nonce.
+    The 61-bit combined search space (version[0:28] × nonce[0:31]) means
+    predicting both together should be more powerful than predicting nonce alone.
+    """
+    def __init__(self, input_dim: int, hidden_dims: list[int] = [512, 256, 128]):
+        super().__init__()
+        layers = []
+        prev = input_dim
+        for h in hidden_dims:
+            layers += [nn.Linear(prev, h), nn.LayerNorm(h), nn.GELU(), nn.Dropout(0.15)]
+            prev = h
+        self.shared = nn.Sequential(*layers)
+        # Two separate output heads
+        self.nonce_head   = nn.Linear(prev, 1)
+        self.version_head = nn.Linear(prev, 1)
+
+    def forward(self, x):
+        shared = self.shared(x)
+        return self.nonce_head(shared).squeeze(-1), self.version_head(shared).squeeze(-1)

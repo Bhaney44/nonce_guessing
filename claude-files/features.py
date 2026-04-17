@@ -30,6 +30,11 @@ import joblib
 LAG_STEPS = [1, 2, 3, 5, 8, 13, 21]   # Fibonacci lags
 ROLL_WINDOWS = [3, 7, 21, 50, 100]
 
+# Version field masks (BIP9 version rolling)
+VERSION_BASE_MASK   = 0x20000000   # BIP9 signal bit
+VERSION_FREE_BITS   = 0x1FFFFFFF   # bits 0-28 are freely settable by miners
+VERSION_SIGNAL_MASK = 0xE0000000   # top 3 bits are protocol signals
+
 
 def load_blocks(path: str = "data/blocks.json") -> pd.DataFrame:
     with open(path) as f:
@@ -49,10 +54,30 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
 
     # ── Core fields ──────────────────────────────────────────────────────────
     feat["nonce"] = df["nonce"].astype(np.float64)
-    feat["version"] = df["version"].astype(np.float64)
     feat["bits"] = df["bits"].astype(np.float64)
     feat["n_tx"] = df["n_tx"].astype(np.float64)
     feat["size"] = df["size"].astype(np.float64)
+
+    # ── Version field decomposition (BIP9 / version rolling) ─────────────
+    # The version field is NOT just a version number — miners use bits 0–28
+    # as extra nonce space (version rolling / overt AsicBoost).
+    # This gives ~61 bits of combined search space: version[0:28] × nonce[0:31]
+    version_int = df["version"].astype(np.int64)
+
+    feat["version_raw"] = version_int.astype(np.float64)
+    # Free bits (0–28): the part miners actually vary
+    feat["version_free"] = (version_int & VERSION_FREE_BITS).astype(np.float64)
+    # Signal bits (top 3): protocol flags, relatively stable
+    feat["version_signal"] = ((version_int >> 29) & 0x7).astype(np.float64)
+    # Normalized free bits [0, 1]
+    feat["version_free_norm"] = feat["version_free"] / (VERSION_FREE_BITS)
+    # Is this a BIP9-signaling block?
+    feat["version_is_bip9"] = ((version_int & 0xE0000000) == VERSION_BASE_MASK).astype(np.float64)
+
+    # Combined search position: treat (version_free, nonce) as a 61-bit joint space
+    # Encode as a single normalized float for sequence models
+    joint_space = feat["version_free"].values * (2**32) + feat["nonce"].values
+    feat["joint_search_pos"] = joint_space / (VERSION_FREE_BITS * (2**32))
 
     # Nonce normalized to [0, 1] — how far through the 32-bit space did miner search?
     feat["nonce_normalized"] = feat["nonce"] / (2**32 - 1)
@@ -75,6 +100,8 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
     for lag in LAG_STEPS:
         feat[f"nonce_lag_{lag}"] = feat["nonce"].shift(lag)
         feat[f"nonce_norm_lag_{lag}"] = feat["nonce_normalized"].shift(lag)
+        feat[f"version_free_lag_{lag}"] = feat["version_free"].shift(lag)
+        feat[f"joint_pos_lag_{lag}"] = feat["joint_search_pos"].shift(lag)
 
     # ── Rolling statistics ────────────────────────────────────────────────────
     for w in ROLL_WINDOWS:
@@ -84,6 +111,14 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
         feat[f"roll_min_{w}"] = roll.min()
         feat[f"roll_max_{w}"] = roll.max()
         feat[f"roll_range_{w}"] = feat[f"roll_max_{w}"] - feat[f"roll_min_{w}"]
+        # Rolling stats on version free bits
+        vroll = feat["version_free"].shift(1).rolling(window=w)
+        feat[f"version_roll_mean_{w}"] = vroll.mean()
+        feat[f"version_roll_std_{w}"]  = vroll.std()
+        # Rolling stats on joint search position
+        jroll = feat["joint_search_pos"].shift(1).rolling(window=w)
+        feat[f"joint_roll_mean_{w}"] = jroll.mean()
+        feat[f"joint_roll_std_{w}"]  = jroll.std()
 
     # ── Difficulty-derived features ───────────────────────────────────────────
     # bits encodes the target compactly — decode to approximate difficulty
