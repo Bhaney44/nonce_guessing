@@ -152,7 +152,15 @@ def main():
     # ── Load & engineer features ──────────────────────────────────────────
     print(f"Loading data from {args.data}...")
     df = load_blocks(args.data)
-    print(f"  {len(df):,} blocks loaded (heights {df['height'].min()}–{df['height'].max()})")
+    n_blocks = len(df)
+    print(f"  {n_blocks:,} blocks loaded (heights {df['height'].min()}–{df['height'].max()})")
+
+    MIN_BLOCKS = 500
+    if n_blocks < MIN_BLOCKS:
+        print(f"\n  ✗ Not enough data: need at least {MIN_BLOCKS} blocks, have {n_blocks}.")
+        print(f"  Run: python data_fetcher.py --blocks 5000")
+        print(f"  The fetcher is resumable — it will pick up where it left off.")
+        return
 
     feat = engineer_features(df)
     print(f"  Feature matrix: {feat.shape[0]:,} samples × {feat.shape[1]} features")

@@ -62,17 +62,14 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
     # The version field is NOT just a version number — miners use bits 0–28
     # as extra nonce space (version rolling / overt AsicBoost).
     # This gives ~61 bits of combined search space: version[0:28] × nonce[0:31]
-    version_int = df["version"].astype(np.int64)
+    # Use .values to get numpy array — pandas Series doesn't support >> on int64
+    version_int = df["version"].astype(np.int64).values
 
-    feat["version_raw"] = version_int.astype(np.float64)
-    # Free bits (0–28): the part miners actually vary
-    feat["version_free"] = (version_int & VERSION_FREE_BITS).astype(np.float64)
-    # Signal bits (top 3): protocol flags, relatively stable
-    feat["version_signal"] = ((version_int >> 29) & 0x7).astype(np.float64)
-    # Normalized free bits [0, 1]
-    feat["version_free_norm"] = feat["version_free"] / (VERSION_FREE_BITS)
-    # Is this a BIP9-signaling block?
-    feat["version_is_bip9"] = ((version_int & 0xE0000000) == VERSION_BASE_MASK).astype(np.float64)
+    feat["version_raw"]      = version_int.astype(np.float64)
+    feat["version_free"]     = (version_int & VERSION_FREE_BITS).astype(np.float64)
+    feat["version_signal"]   = ((version_int >> 29) & 0x7).astype(np.float64)
+    feat["version_free_norm"]= feat["version_free"] / VERSION_FREE_BITS
+    feat["version_is_bip9"]  = ((version_int & 0xE0000000) == VERSION_BASE_MASK).astype(np.float64)
 
     # Combined search position: treat (version_free, nonce) as a 61-bit joint space
     # Encode as a single normalized float for sequence models
